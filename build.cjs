@@ -1,4 +1,5 @@
 const esbuild = require('esbuild');
+
 esbuild.build({
     entryPoints: ['./content.js'],
     bundle: true,
@@ -7,24 +8,25 @@ esbuild.build({
     format: 'iife',
     sourcemap: true,
     define: {
-        'process.env.NODE_ENV': '"production"', // if needed by some libs
+        'process.env.NODE_ENV': '"production"',
     },
-    // This tells esbuild to replace `require("fs")` or `import fs` with an empty object
-    // effectively ignoring it for the browser bundle
-    inject: [], // no inject
-    external: ['fs'],
-    // Or use the "alias" plugin to stub fs:
+    external: ['fs'], // ignore Node modules
     plugins: [
         {
             name: 'fs-stub',
             setup(build) {
-                build.onResolve({ filter: /^fs$/ }, args => {
-                    return { path: args.path, namespace: 'fs-stub' }
-                });
-                build.onLoad({ filter: /.*/, namespace: 'fs-stub' }, () => {
-                    return { contents: 'export default {}', loader: 'js' };
-                });
+                build.onResolve({ filter: /^fs$/ }, args => ({
+                    path: args.path,
+                    namespace: 'fs-stub',
+                }));
+                build.onLoad({ filter: /.*/, namespace: 'fs-stub' }, () => ({
+                    contents: 'export default {}',
+                    loader: 'js',
+                }));
             },
         },
     ],
+    loader: {
+        '.js': 'js',
+    },
 });

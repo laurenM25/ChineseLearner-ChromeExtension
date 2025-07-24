@@ -2,7 +2,7 @@
 // grab and send selected chinese to tooltip renderer
 // look up definitions
 
-import { getGloss, search } from './utils.js'; //translate, pinyin4js, Segment, useDefault are other ones
+import { getGloss, search, translate, getPinyin, Segment, useDefault } from './utils.js';
 console.log("content.js is running");
 //listen
 
@@ -32,9 +32,22 @@ document.addEventListener("mouseup", async () => {
     tooltip.style.top = `${window.scrollY + rect.top - 40}px`;
     tooltip.style.left = `${window.scrollX + rect.left}px`;
 
+    const pinyin = getPinyin(selection);
     try {
         const gloss = await getGloss(selection);
-        tooltip.innerText = `${selection}: ${gloss}`;
+        if (selection == gloss) {
+            console.log(`gloss (${gloss}) is same as selection(${selection}), giving longtrans`)
+            const longTrans = await translate(selection, { from: 'zh', to: 'en' });
+            if (longTrans.trim().split(" ").length < 6) {
+                console.log("longTrans is less than 6 words");
+                tooltip.innerText = `translation: ${longTrans}\n${pinyin}`;
+            } else {
+                console.log("longTrans is more than or equal to 6 words");
+                tooltip.innerText = `translation: ${longTrans}`;
+            }
+        } else {
+            tooltip.innerText = `${selection}: ${gloss}\n${pinyin}`;
+        }
     } catch (err) {
         tooltip.innerText = `Error: ${err.message}`;
     }
