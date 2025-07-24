@@ -20,14 +20,11 @@
                 "<all_urls>"
             ],
             "js": [
-                "content.js"
+                "dist/content.js"
             ]
         }
     ],
     "action": {
-        "default_popup": "popup/popup.html",
-        "default_icon": {
-            "128": "icons/icon128.png"
-        }
+        "default_popup": "popup/popup.html"
     }
 }

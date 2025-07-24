@@ -1,8 +1,16 @@
 console.log("Importing data...");
 
-let { etymologies, componentDict } = require("./etymology");
-let entries = require("./dictionary");
-let { getStatistics, movieCharFrequencies, bookCharFrequencies } = require("./statistics");
+// Import dependencies with .js extensions
+const directory = "../node_modules/chinese-lexicon/";
+const fN = "index.js";
+
+//cannot use variables in import statement so i will just write it out
+import { etymologies, componentDict } from "../node_modules/chinese-lexicon/etymology/index.js";
+import entries from "../node_modules/chinese-lexicon/dictionary/index.js";  // assuming default export; if named export, change accordingly
+import { getStatistics, movieCharFrequencies, bookCharFrequencies } from "../node_modules/chinese-lexicon/statistics/index.js";
+
+import getGlossFactory from "../node_modules/chinese-lexicon/gloss/index.js";
+import populatePinyin from "../node_modules/chinese-lexicon/etymology/populatePinyin.js";
 
 let simpDict = {};
 let tradDict = {};
@@ -49,12 +57,16 @@ function getFrequency(char) {
 }
 
 function getComponentUses(simp, trad, dict) {
-    let componentUses = { ...(componentDict[simp] || {}), ...(componentDict[trad] || {}) }
+    let componentUses = { ...(componentDict[simp] || {}), ...(componentDict[trad] || {}) };
     let uses = {};
     if (!componentUses) return uses;
     let count = 0;
     for (let type in componentUses) {
-        let combined = new Set(Array.from((componentDict[simp] || {})[type] || new Set()).concat(Array.from((componentDict[trad] || {})[type] || new Set())));
+        let combined = new Set(
+            Array.from((componentDict[simp] || {})[type] || new Set()).concat(
+                Array.from((componentDict[trad] || {})[type] || new Set())
+            )
+        );
         let chars = Array.from(combined).filter(x => x in dict);
         if (chars.length) {
             uses[type] = chars.sort((a, b) => getFrequency(b) - getFrequency(a));
@@ -75,9 +87,19 @@ for (let entry of entries) {
     }
     entry.statistics = getStatistics(entry);
     let { hskLevel, movieWordCount, movieCharCount, bookWordCount, bookCharCount, pinyinFrequency } = entry.statistics;
-    entry.boost = (7 - hskLevel) + getBoost(movieWordCount) + getBoost(movieCharCount) + getBoost(bookWordCount) + getBoost(bookCharCount) + getBoost(pinyinFrequency) + entry.definitions.length;
+    entry.boost =
+        (7 - hskLevel) +
+        getBoost(movieWordCount) +
+        getBoost(movieCharCount) +
+        getBoost(bookWordCount) +
+        getBoost(bookCharCount) +
+        getBoost(pinyinFrequency) +
+        entry.definitions.length;
 
-    entry.usedAsComponentIn = { simp: getComponentUses(simp, trad, simpDict), trad: getComponentUses(simp, trad, tradDict) };
+    entry.usedAsComponentIn = {
+        simp: getComponentUses(simp, trad, simpDict),
+        trad: getComponentUses(simp, trad, tradDict)
+    };
 }
 
 for (let char in simpDict) {
@@ -88,13 +110,17 @@ for (let char in tradDict) {
     tradDict[char].sort((a, b) => b.boost - a.boost);
 }
 
-function search(term, limit) {
+function search(term, limit = 100) {
     term = term.toLowerCase();
-    limit = limit || 100;
     return entries
         .filter(({ definitions, simp, trad, searchablePinyin, pinyin, pinyinTones }) =>
             isWholeWordMatch(definitions.join(" "), term) ||
-            isSubstringMatch(simp, term) || isSubstringMatch(trad, term) || isSubstringMatch(searchablePinyin, term) || isSubstringMatch(pinyinTones, term) || isSubstringMatch(pinyin.toLowerCase(), term))
+            isSubstringMatch(simp, term) ||
+            isSubstringMatch(trad, term) ||
+            isSubstringMatch(searchablePinyin, term) ||
+            isSubstringMatch(pinyinTones, term) ||
+            isSubstringMatch(pinyin.toLowerCase(), term)
+        )
         .map(entry => {
             let { definitions, simp, trad, searchablePinyin, pinyin, pinyinTones } = entry;
             let relevance = 1;
@@ -108,13 +134,19 @@ function search(term, limit) {
                     relevance += 1 / (i + 1);
                 }
             }
-            if (isWholeWordMatch(simp, term) || isWholeWordMatch(trad, term) || isWholeWordMatch(searchablePinyin, term) || isWholeWordMatch(pinyinTones, term) || isWholeWordMatch(pinyin.toLowerCase(), term)) {
+            if (
+                isWholeWordMatch(simp, term) ||
+                isWholeWordMatch(trad, term) ||
+                isWholeWordMatch(searchablePinyin, term) ||
+                isWholeWordMatch(pinyinTones, term) ||
+                isWholeWordMatch(pinyin.toLowerCase(), term)
+            ) {
                 relevance += 10;
             }
             entry.relevance = relevance;
             return entry;
         })
-        .sort((a, b) => (b.boost * b.relevance) - (a.boost * a.relevance))
+        .sort((a, b) => b.boost * b.relevance - a.boost * a.relevance)
         .slice(0, limit);
 }
 
@@ -138,19 +170,21 @@ function isSubstringMatch(text, term) {
     return text.includes(term);
 }
 
-let getGloss = require("./gloss")(getEntries);
-require("./etymology/populatePinyin")(etymologies, getEntries, getGloss);
+const getGloss = getGlossFactory(getEntries);
+populatePinyin(etymologies, getEntries, getGloss);
 
 for (let entry of entries) {
     let { simp } = entry;
     if (simp.length > 1) continue;
-    entry.statistics.topWords = entry.statistics.topWords.filter(x => x.word in simpDict).map(x => ({ ...x, trad: simpDict[x.word][0].trad, gloss: getGloss(x.word) }));
+    entry.statistics.topWords = entry.statistics.topWords
+        .filter(x => x.word in simpDict)
+        .map(x => ({ ...x, trad: simpDict[x.word][0].trad, gloss: getGloss(x.word) }));
 }
 
 console.log("Ready!");
 
-module.exports = {
-    allEntries: entries,
+export {
+    entries as allEntries,
     simpDict,
     tradDict,
     getEntries,
